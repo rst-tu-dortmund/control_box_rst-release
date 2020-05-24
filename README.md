@@ -2,9 +2,13 @@
 
 ## Status
 
+ROS package:
+- ROS Melodic (*melodic-devel*): [![Melodic Status](http://build.ros.org/buildStatus/icon?job=Mdev__control_box_rst__ubuntu_bionic_amd64)](http://build.ros.org/job/Mdev__control_box_rst__ubuntu_bionic_amd64/)
+
 
 ## Documentation 
 
+Build and installation instructions as well as further documentation are provided in the [project wiki](https://github.com/rst-tu-dortmund/control_box_rst/wiki).
 
 ## Authors
 
@@ -21,7 +25,7 @@
 
 **Time-Optimal MPC and Hypergraph**
 
-- C. Rösmann: [Time-optimal nonlinear model predictive control - Direct transcription methods with variable discretization and structural sparsity exploitation](http://dx.doi.org/10.17877/DE290R-20283). Dissertation, TU Dortmund University, Oct. 2019.
+- C. Rösmann: [Time-optimal nonlinear model predictive control, Direct transcription methods with variable discretization and structural sparsity exploitation](http://dx.doi.org/10.17877/DE290R-20283). Dissertation, Technische Universität Dortmund, Oct. 2019.
 
 **Uniform Grid Time-Optimal MPC**
 
@@ -33,6 +37,7 @@
 - C. Rösmann, A. Makarow, F. Hoffmann und T. Bertram: Sparse Shooting at Adaptive Temporal Resolution for Time-Optimal Model Predictive Control, IEEE Conference on Decision and Control (CDC), Australia, December 2017.
 - C. Rösmann, A. Makarow, F. Hoffmann und T. Bertram: Time-Optimal Nonlinear Model Predictive Control with Minimal Control Interventions, IEEE Conference on Control Technology and Applications (CCTA), Hawai'i, August 2017.
 
+<a href="https://www.buymeacoffee.com/croesmann" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/lato-orange.png" alt="Buy Me A Coffee" height="31px" width="132px"></a>
 
 ## License
 

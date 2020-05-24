@@ -56,6 +56,7 @@ GridUpdateResult FullDiscretizationGridBase::update(const Eigen::VectorXd& x0, R
     // check if we need to cache the reference trajectory values // TODO(roesmann): we could restrict this to new_run==true only as long as we do not
     // have a grid resize...
     int n = std::max(std::max(getNRef(), getN()), _n_adapt);
+    if (_dt.value() <= 0) _dt.value() = _dt_ref; // initialize _dt to _dt_ref in case it has not been optimized before
     if (!xref.isCached(getDt(), n, t)) xref.precompute(getDt(), n, t);
     if (!uref.isCached(getDt(), n, t)) uref.precompute(getDt(), n, t);
     if (sref && !sref->isCached(getDt(), n, t)) sref->precompute(getDt(), n, t);
@@ -69,7 +70,7 @@ GridUpdateResult FullDiscretizationGridBase::update(const Eigen::VectorXd& x0, R
         setPreviousControl(Eigen::VectorXd::Zero(dynamics->getInputDimension()), prev_u_dt);
 
     // set last control to uref
-    setLastControlRef(uref.getReferenceCached(n));
+    setLastControlRef(uref.getReferenceCached(n - 1));
 
     // TODO(roesmann): we do not check if bounds in nlp_fun are updated
     // updateBounds(); // calling this everytime is not efficient
@@ -506,6 +507,8 @@ void FullDiscretizationGridBase::getVertices(std::vector<VertexInterface*>& vert
     vertices.push_back(&_xf);
     vertices.push_back(&_dt);      // make sure to make it fixed if desired in any subclass
     vertices.push_back(&_u_prev);  // always fixed...
+    vertices.push_back(&_u_ref);
+    vertices.push_back(&_u_prev_dt);
 }
 
 void FullDiscretizationGridBase::computeActiveVertices()
