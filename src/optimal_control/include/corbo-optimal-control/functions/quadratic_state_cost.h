@@ -56,6 +56,7 @@ class QuadraticStateCost : public StageCost
     bool setWeightQ(const Eigen::Ref<const Eigen::MatrixXd>& Q);
     bool setWeightQ(const Eigen::DiagonalMatrix<double, -1>& Q);
     void setLsqForm(bool lsq_form) { _lsq_form = lsq_form; }
+    void setIntegralForm(bool integral_form) { _integral_form = integral_form; }
 
     void computeNonIntegralStateTerm(int k, const Eigen::Ref<const Eigen::VectorXd>& x_k, Eigen::Ref<Eigen::VectorXd> cost) const override;
     void computeIntegralStateControlTerm(int k, const Eigen::Ref<const Eigen::VectorXd>& x_k, const Eigen::Ref<const Eigen::VectorXd>& u_k,
@@ -75,8 +76,14 @@ class QuadraticStateCost : public StageCost
     bool checkParameters(int state_dim, int control_dim, std::stringstream* issues) const override;
 
 #ifdef MESSAGE_SUPPORT
-    bool fromMessage(const messages::StageCost& message, std::stringstream* issues) override;
-    void toMessage(messages::StageCost& message) const override;
+    virtual bool fromMessage(const messages::QuadraticStateCost& message, std::stringstream* issues);
+    virtual void toMessage(messages::QuadraticStateCost& message) const;
+
+    bool fromMessage(const messages::StageCost& message, std::stringstream* issues) override
+    {
+        return fromMessage(message.quadratic_state_cost(), issues);
+    }
+    void toMessage(messages::StageCost& message) const override { toMessage(*message.mutable_quadratic_state_cost()); }
 #endif
 
  protected:
