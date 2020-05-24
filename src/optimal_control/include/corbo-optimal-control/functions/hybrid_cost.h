@@ -27,6 +27,8 @@
 
 #include <corbo-optimal-control/functions/minimum_time.h>
 #include <corbo-optimal-control/functions/quadratic_cost.h>
+#include <corbo-optimal-control/functions/quadratic_control_cost.h>
+#include <corbo-optimal-control/functions/quadratic_state_cost.h>
 
 #include <algorithm>
 #include <cmath>
@@ -189,6 +191,13 @@ class MinTimeQuadratic : public StageCost
  public:
     MinTimeQuadratic() = default;
 
+    MinTimeQuadratic(const Eigen::Ref<const Eigen::MatrixXd>& Q, const Eigen::Ref<const Eigen::MatrixXd>& R, bool integral_form)
+    {
+        _quad_cost.setWeightQ(Q);
+        _quad_cost.setWeightR(R);
+        _quad_cost.setIntegralForm(integral_form);
+    }
+
     StageCost::Ptr getInstance() const override { return std::make_shared<MinTimeQuadratic>(); }
 
     bool hasNonIntegralTerms(int k) const override
@@ -290,6 +299,172 @@ class MinTimeQuadratic : public StageCost
     int _quad_k_min = 0;
 };
 FACTORY_REGISTER_STAGE_COST(MinTimeQuadratic)
+
+class MinTimeQuadraticControls : public StageCost
+{
+ public:
+    MinTimeQuadraticControls() = default;
+
+    MinTimeQuadraticControls(const Eigen::Ref<const Eigen::MatrixXd>& R, bool integral_form)
+    {
+        _quad_control_cost.setWeightR(R);
+        _quad_control_cost.setIntegralForm(integral_form);
+    }
+
+    StageCost::Ptr getInstance() const override { return std::make_shared<MinTimeQuadraticControls>(); }
+
+    bool hasNonIntegralTerms(int k) const override
+    {
+        return _quad_control_cost.hasNonIntegralTerms(k) || _min_time.hasNonIntegralTerms(k);
+    }
+    bool hasIntegralTerms(int k) const override { return _quad_control_cost.hasIntegralTerms(k); }
+
+    int getNonIntegralDtTermDimension(int k) const override { return _min_time.getNonIntegralDtTermDimension(k); }
+    int getNonIntegralControlTermDimension(int k) const override { return _quad_control_cost.getNonIntegralControlTermDimension(k); }
+    int getIntegralStateControlTermDimension(int k) const override
+    {
+        return _quad_control_cost.getIntegralStateControlTermDimension(k);
+    }
+
+    bool isLsqFormNonIntegralControlTerm(int k) const override { return _quad_control_cost.isLsqFormNonIntegralControlTerm(k); }
+
+    bool update(int n, double t, ReferenceTrajectoryInterface& xref, ReferenceTrajectoryInterface& uref, ReferenceTrajectoryInterface* sref,
+                bool single_dt, const Eigen::VectorXd& x0, StagePreprocessor::Ptr stage_preprocessor, const std::vector<double>& dts,
+                const DiscretizationGridInterface* grid) override
+    {
+        bool changed = false;
+        if (_min_time.update(n, t, xref, uref, sref, single_dt, x0, stage_preprocessor, dts, grid)) changed = true;
+        if (_quad_control_cost.update(n, t, xref, uref, sref, single_dt, x0, stage_preprocessor, dts, grid)) changed = true;
+
+        return changed;
+    }
+
+    void computeNonIntegralDtTerm(int k, double dt, Eigen::Ref<Eigen::VectorXd> cost) const override
+    {
+        _min_time.computeNonIntegralDtTerm(k, dt, cost);
+    }
+
+    void computeNonIntegralControlTerm(int k, const Eigen::Ref<const Eigen::VectorXd>& u_k, Eigen::Ref<Eigen::VectorXd> cost) const override
+    {
+        _quad_control_cost.computeNonIntegralControlTerm(k, u_k, cost);
+    }
+
+    void computeIntegralStateControlTerm(int k, const Eigen::Ref<const Eigen::VectorXd>& x_k, const Eigen::Ref<const Eigen::VectorXd>& u_k,
+                                         Eigen::Ref<Eigen::VectorXd> cost) const override
+    {
+        _quad_control_cost.computeIntegralStateControlTerm(k, x_k, u_k, cost);
+    }
+
+#ifdef MESSAGE_SUPPORT
+    bool fromMessage(const messages::StageCost& message, std::stringstream* issues) override
+    {
+        bool success = true;
+
+        const messages::MinTimeQuadraticControls& msg = message.min_time_quad_controls();
+
+        success = success && _min_time.fromMessage(msg.minimum_time(), issues);
+        success = success && _quad_control_cost.fromMessage(msg.quadratic_controls(), issues);
+
+        return success;
+    }
+
+    void toMessage(messages::StageCost& message) const override
+    {
+        messages::MinTimeQuadraticControls* msg = message.mutable_min_time_quad_controls();
+
+        _min_time.toMessage(*msg->mutable_minimum_time());
+        _quad_control_cost.toMessage(*msg->mutable_quadratic_controls());
+    }
+#endif
+
+ protected:
+    MinimumTime _min_time;
+    QuadraticControlCost _quad_control_cost;
+};
+FACTORY_REGISTER_STAGE_COST(MinTimeQuadraticControls)
+
+class MinTimeQuadraticStates : public StageCost
+{
+ public:
+    MinTimeQuadraticStates() = default;
+
+    MinTimeQuadraticStates(const Eigen::Ref<const Eigen::MatrixXd>& Q, bool integral_form)
+    {
+        _quad_state_cost.setWeightQ(Q);
+        _quad_state_cost.setIntegralForm(integral_form);
+    }
+
+    StageCost::Ptr getInstance() const override { return std::make_shared<MinTimeQuadraticStates>(); }
+
+    bool hasNonIntegralTerms(int k) const override
+    {
+        return _quad_state_cost.hasNonIntegralTerms(k) || _min_time.hasNonIntegralTerms(k);
+    }
+    bool hasIntegralTerms(int k) const override { return _quad_state_cost.hasIntegralTerms(k); }
+
+    int getNonIntegralDtTermDimension(int k) const override { return _min_time.getNonIntegralDtTermDimension(k); }
+    int getNonIntegralStateTermDimension(int k) const override { return _quad_state_cost.getNonIntegralStateTermDimension(k); }
+    int getIntegralStateControlTermDimension(int k) const override
+    {
+        return _quad_state_cost.getIntegralStateControlTermDimension(k);
+    }
+
+    bool isLsqFormNonIntegralStateTerm(int k) const override { return _quad_state_cost.isLsqFormNonIntegralStateTerm(k); }
+
+    bool update(int n, double t, ReferenceTrajectoryInterface& xref, ReferenceTrajectoryInterface& uref, ReferenceTrajectoryInterface* sref,
+                bool single_dt, const Eigen::VectorXd& x0, StagePreprocessor::Ptr stage_preprocessor, const std::vector<double>& dts,
+                const DiscretizationGridInterface* grid) override
+    {
+        bool changed = false;
+        if (_min_time.update(n, t, xref, uref, sref, single_dt, x0, stage_preprocessor, dts, grid)) changed = true;
+        if (_quad_state_cost.update(n, t, xref, uref, sref, single_dt, x0, stage_preprocessor, dts, grid)) changed = true;
+
+        return changed;
+    }
+
+    void computeNonIntegralDtTerm(int k, double dt, Eigen::Ref<Eigen::VectorXd> cost) const override
+    {
+        _min_time.computeNonIntegralDtTerm(k, dt, cost);
+    }
+
+    void computeNonIntegralStateTerm(int k, const Eigen::Ref<const Eigen::VectorXd>& x_k, Eigen::Ref<Eigen::VectorXd> cost) const override
+    {
+        _quad_state_cost.computeNonIntegralStateTerm(k, x_k, cost);
+    }
+
+    void computeIntegralStateControlTerm(int k, const Eigen::Ref<const Eigen::VectorXd>& x_k, const Eigen::Ref<const Eigen::VectorXd>& u_k,
+                                         Eigen::Ref<Eigen::VectorXd> cost) const override
+    {
+        _quad_state_cost.computeIntegralStateControlTerm(k, x_k, u_k, cost);
+    }
+
+#ifdef MESSAGE_SUPPORT
+    bool fromMessage(const messages::StageCost& message, std::stringstream* issues) override
+    {
+        bool success = true;
+
+        const messages::MinTimeQuadraticStates& msg = message.min_time_quad_states();
+
+        success = success && _min_time.fromMessage(msg.minimum_time(), issues);
+        success = success && _quad_state_cost.fromMessage(msg.quadratic_states(), issues);
+
+        return success;
+    }
+
+    void toMessage(messages::StageCost& message) const override
+    {
+        messages::MinTimeQuadraticStates* msg = message.mutable_min_time_quad_states();
+
+        _min_time.toMessage(*msg->mutable_minimum_time());
+        _quad_state_cost.toMessage(*msg->mutable_quadratic_states());
+    }
+#endif
+
+ protected:
+    MinimumTime _min_time;
+    QuadraticStateCost _quad_state_cost;
+};
+FACTORY_REGISTER_STAGE_COST(MinTimeQuadraticStates)
 
 }  // namespace corbo
 
